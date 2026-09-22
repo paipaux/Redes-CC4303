@@ -218,6 +218,7 @@ def build_image_response(filee):
 if __name__ == "__main__":
     # definimos el tamaño del buffer de recepción y la secuencia de fin de mensaje
     buff_size = 8
+    print("tamaño buffer:", buff_size)
     
     # hay que ir cambiandoloo, tuve que cambiarlo al mio para que corriera :p
     new_socket_address = ('192.168.56.1', 8800)
