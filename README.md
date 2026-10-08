@@ -14,3 +14,5 @@
 	22-09 Se deja el contenido de la actividad de http en una carpeta especifica para mayor orden (considerando que se seguirán subiendo el resto de controles al mismo repositorio)
 
 ----- CONTROL 2
+
+	06-10 Se completa hasta el punto 3
