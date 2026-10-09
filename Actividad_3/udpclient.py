@@ -1,25 +1,22 @@
 import socket
-
+from socketTCP import SocketTCP
+ 
 address = ('localhost', 8000)
 sizee = 16
-
-clienteSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
+ 
+client_socketTCP = SocketTCP()
+client_socketTCP.connect(address)
+print("handshake OK, ahora le hablo a", client_socketTCP.direcciondestino, "seq:", client_socketTCP.numerosecuencia)
+ 
 print('manda algo :')
 x = input()
-
-
+ 
 with open(x, "rb") as f:
     while True:
         trozo = f.read(sizee)
         if not trozo:
             # se acabó el archivo
             break
-        clienteSocket.sendto(trozo, address)
+        client_socketTCP.send(trozo)
 
-
-
-
-while True:
-    data, addr = clienteSocket.recvfrom(16)
-    print("Recibido: ", data)
+client_socketTCP.close()

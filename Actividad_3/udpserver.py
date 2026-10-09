@@ -1,21 +1,19 @@
 import socket
 import time
+from socketTCP import SocketTCP
 
 address = ('localhost', 8000)
-Message = "hola pipe"
 
-
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-server_socket.bind(address)
-
-recibido = b""
+server_socketTCP = SocketTCP()
+server_socketTCP.bind(address)
+connection_socketTCP, new_address = server_socketTCP.accept()
+print("handshake OK, nuevo socket en", new_address, "seq:", connection_socketTCP.numerosecuencia)
 
 while True:
-    data, direccion = server_socket.recvfrom(500)
-    print("Recibido: ", data.decode("utf-8"))
+    data = connection_socketTCP.recv(16)
     if data == b"":
-        # está vacioo, es el fin
-        recibido = b""
-        continue
-    recibido += data
-    server_socket.sendto(Message.encode(), direccion)
+        break
+    print("Recibido: ", data.decode("utf-8", errors="replace"))
+
+connection_socketTCP.close()
+server_socketTCP.close()
