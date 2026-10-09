@@ -16,3 +16,5 @@
 ----- CONTROL 2
 
 	06-10 Se completa hasta el punto 3
+
+	08-10 Punto 4 completo (trabajando para usted en el resto trust trust dejé las funciones anotadas)
