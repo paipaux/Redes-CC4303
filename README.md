@@ -18,3 +18,9 @@
 	06-10 Se completa hasta el punto 3
 
 	08-10 Punto 4 completo (trabajando para usted en el resto trust trust dejé las funciones anotadas)
+
+	08-10 (pt 2) Puntos 5, 6 y 7 (se nos pasó ponerlo aquí ese día)
+
+	13-10 Actividad 4 hasta el punto 3, falta revisarlo bien :p
+
+	
