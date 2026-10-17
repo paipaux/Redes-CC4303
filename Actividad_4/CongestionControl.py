@@ -5,35 +5,14 @@ class CongestionControl:
         self.cwnd = mss
         self.ssthresh = None
 
-    def check_ssthresh(self):
-        print(self.ssthresh)
-        current_ssthresh = self.ssthresh
-        if self.current_state == False:
-            if self.ssthresh == None:
-                current_ssthresh = -1
-            if self.cwnd >= current_ssthresh:
-                self.current_state = True
-
     def get_cwnd(self):
-        return self.cwnd
+        return int(self.cwnd)
 
     def get_MSS_in_cwnd(self):
         return self.get_cwnd() // self.MSS
 
     def get_ssthresh(self):
         return self.ssthresh
-
-    def event_ack_received(self):
-        if self.current_state == False:
-            current_cwnd = self.get_cwnd()
-            self.cwnd = current_cwnd + self.MSS
-            
-
-        if self.current_state == True:
-            current_cwnd = self.get_cwnd()
-            self.cwnd = int(current_cwnd + (self.MSS/self.get_MSS_in_cwnd()))
-
-        self.check_ssthresh()
 
     def is_state_slow_start(self):
         state = self.current_state
@@ -50,10 +29,29 @@ class CongestionControl:
         else:
             return False
 
+    def check_ssthresh(self):
+        current_ssthresh = self.ssthresh
+        if (self.is_state_slow_start() and self.ssthresh is not None and self.cwnd >= current_ssthresh):
+                self.current_state = True
+
+    def event_ack_received(self):
+        if self.is_state_slow_start():
+            self.cwnd += self.MSS
+        else: # es congestion
+            self.cwnd += self.MSS/self.get_MSS_in_cwnd()
+
+        self.check_ssthresh()
 
     def event_timeout(self):
         if self.is_state_slow_start():
-            self.ssthresh = self.MSS * 4
+            # hay que ver el priemr timeout
+            if self.ssthresh is None:
+                self.ssthresh = self.MSS * 4
+        else:
+            self.ssthresh = int(self.cwnd // 2)
+        
+        self.cwnd = self.MSS
+        self.current_state = False
         self.check_ssthresh()
 
 

@@ -12,16 +12,14 @@ def ack_test(congestion_controler, MSS):
     for i in range(3):
         for j in range(congestion_controler.get_MSS_in_cwnd()):
             congestion_controler.event_ack_received()
-
-    print(congestion_controler.get_cwnd()) 
+    
     if congestion_controler.get_cwnd() == 8*MSS and congestion_controler.get_MSS_in_cwnd() == 8: print("ACK test passed")
     else: print("ACK test failed")
 
 
 def timeout_test(congestion_controler, MSS):
     congestion_controler.event_timeout()
-    print(congestion_controler.get_ssthresh())
-    print(congestion_controler.get_cwnd())
+
     if congestion_controler.get_cwnd() == MSS and congestion_controler.get_MSS_in_cwnd() == 1 \
             and congestion_controler.is_state_slow_start() and congestion_controler.get_ssthresh() == 4 * MSS: print("Timeout test passed")
 
@@ -33,12 +31,6 @@ def ssthresh_test(congestion_controler, MSS):
     for i in range(3):
         for j in range(congestion_controler.get_MSS_in_cwnd()):
             congestion_controler.event_ack_received()
-    print('------')
-    print(congestion_controler.is_state_congestion_avoidance())
-    print(congestion_controler.get_cwnd())
-    print(congestion_controler.get_MSS_in_cwnd())
-    congestion_controler.check_ssthresh()
-
 
     if congestion_controler.is_state_congestion_avoidance() and congestion_controler.get_cwnd() == 5*MSS  \
             and congestion_controler.get_MSS_in_cwnd() == 5: print("ssthresh test passed")
@@ -56,12 +48,9 @@ def congestion_control_object_test(MSS):
     congestion_controler = cc.CongestionControl(MSS)
     initialization_test(congestion_controler, MSS)
     ack_test(congestion_controler, MSS)
-
-    #congestion_controler = cc.CongestionControl(MSS)
-
-    #timeout_test(congestion_controler, MSS)
-    #ssthresh_test(congestion_controler, MSS)
-    #timeout_in_congestion_avoidance_test(congestion_controler, MSS)
+    timeout_test(congestion_controler, MSS)
+    ssthresh_test(congestion_controler, MSS)
+    timeout_in_congestion_avoidance_test(congestion_controler, MSS)
 
 MSS = 7
 congestion_control_object_test(MSS)
