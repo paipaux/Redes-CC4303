@@ -12,9 +12,9 @@ class SocketTCP:
         self.direcciondestino = None
         self.numerosecuencia = None
         
-        # Variables de estado para recv
-        self.bytes_pendientes = 0  # Bytes que faltan recibir del mensaje actual
-        self.buffer_recibido = b""  # Datos ya recibidos pendientes de entregar a recv()
+        # Variables 
+        self.bytes_pendientes = 0  # bytes que faltan recibir del mensaje actual
+        self.buffer_recibido = b""  # datos ya recibidos pendientes de entregar a recv()
 
     @staticmethod
     def parse_segment(segment):
@@ -49,7 +49,7 @@ class SocketTCP:
     def connect(self, address):
         self.direcciondestino = address
         
-        # 1. Enviar SYN con retransmisión Stop & Wait
+        # 1. Enviar SYN 
         seq = random.randint(0, 100)
         syn = SocketTCP.create_segment({
             "SYN": True, "ACK": False, "FIN": False, "SEQ": seq
@@ -67,7 +67,7 @@ class SocketTCP:
             except socket.timeout:
                 continue
 
-        # 2. Enviar ACK final
+        # 2. Enviar ACK 
         seq = seq + 2
         ack = SocketTCP.create_segment({
             "SYN": False, "ACK": True, "FIN": False, "SEQ": seq
@@ -93,7 +93,7 @@ class SocketTCP:
         nuevo.direccionorigen = nuevo.UDP.getsockname()
         nuevo.direcciondestino = direccion
 
-        # 3. Enviar SYN+ACK con Stop & Wait y manejo del caso borde
+        # 3. Enviar syn+ack 
         seq = seq + 1
         synack = SocketTCP.create_segment({
             "SYN": True, "ACK": True, "FIN": False, "SEQ": seq
@@ -242,56 +242,95 @@ class SocketTCP:
             "SYN": False, "ACK": False, "FIN": True,
             "SEQ": fin_seq
         })
-        self.UDP.sendto(fin_pkt, self.direcciondestino)
 
-        while True:
-            data, _ = self.UDP.recvfrom(SocketTCP.buffsizeeee)
-            seg = SocketTCP.parse_segment(data)
-            if seg and seg["ACK"] and seg["SEQ"] == fin_seq + 1:
-                break
+        self.UDP.settimeout(SocketTCP.TIMEOUT)
+        
+        # 1. Enviar FIN y esperar ACK de él (hasta 3 timeouts)
+        ack_recibido = False
+        for intento in range(3):
+            self.UDP.sendto(fin_pkt, self.direcciondestino)
+            try:
+                data, _ = self.UDP.recvfrom(SocketTCP.buffsizeeee)
+                seg = SocketTCP.parse_segment(data)
+                if seg and seg["ACK"] and seg["SEQ"] == fin_seq + 1:
+                    ack_recibido = True
+                    break
+            except socket.timeout:
+                continue
 
-        while True:
-            data, _ = self.UDP.recvfrom(SocketTCP.buffsizeeee)
-            seg = SocketTCP.parse_segment(data)
-            if seg and seg["FIN"]:
-                fin_b_seq = seg["SEQ"]
-                break
+        # 2. Esperar el FIN de la contraparte (hasta 3 timeouts)
+        fin_b_seq = None
+        for intento in range(3):
+            try:
+                data, _ = self.UDP.recvfrom(SocketTCP.buffsizeeee)
+                seg = SocketTCP.parse_segment(data)
+                if seg and seg["FIN"]:
+                    fin_b_seq = seg["SEQ"]
+                    break
+            except socket.timeout:
+                # Si se vence el timeout esperando el FIN, renovamos
+                continue
 
-        ack_pkt = SocketTCP.create_segment({
-            "SYN": False, "ACK": True, "FIN": False,
-            "SEQ": fin_b_seq + 1
-        })
-        self.UDP.sendto(ack_pkt, self.direcciondestino)
+        # Si logramos capturar el FIN de la contraparte, respondemos el ACK y lo reenviamos 3 veces
+        if fin_b_seq is not None:
+            ack_pkt = SocketTCP.create_segment({
+                "SYN": False, "ACK": True, "FIN": False,
+                "SEQ": fin_b_seq + 1
+            })
+            for intento in range(3):
+                self.UDP.sendto(ack_pkt, self.direcciondestino)
+                # Damos un pequeño respiro de timeout entre reenvíos del ACK final si fuera necesario
+                try:
+                    self.UDP.settimeout(0.5)
+                    self.UDP.recvfrom(SocketTCP.buffsizeeee)
+                except socket.timeout:
+                    pass
+
+        self.UDP.settimeout(None)
         self.UDP.close()
         print("Conexión cerrada exitosamente en Host A (close).")
 
     def recv_close(self):
-        while True:
-            data, _ = self.UDP.recvfrom(SocketTCP.buffsizeeee)
-            seg = SocketTCP.parse_segment(data)
-            if seg and seg["FIN"]:
-                fin_a_seq = seg["SEQ"]
-                break
+        # 1. Esperar el FIN inicial de la contraparte
+        self.UDP.settimeout(SocketTCP.TIMEOUT)
+        fin_a_seq = None
+        for intento in range(3):
+            try:
+                data, _ = self.UDP.recvfrom(SocketTCP.buffsizeeee)
+                seg = SocketTCP.parse_segment(data)
+                if seg and seg["FIN"]:
+                    fin_a_seq = seg["SEQ"]
+                    break
+            except socket.timeout:
+                continue
 
-        ack_pkt = SocketTCP.create_segment({
-            "SYN": False, "ACK": True, "FIN": False,
-            "SEQ": fin_a_seq + 1
-        })
-        self.UDP.sendto(ack_pkt, self.direcciondestino)
+        # Si nunca llegó el FIN por pérdidas totales, asumimos cierre tras los timeouts
+        if fin_a_seq is not None:
+            # Enviar ACK al FIN recibido
+            ack_pkt = SocketTCP.create_segment({
+                "SYN": False, "ACK": True, "FIN": False,
+                "SEQ": fin_a_seq + 1
+            })
+            self.UDP.sendto(ack_pkt, self.direcciondestino)
 
+        # 2. Enviar nuestro propio FIN y esperar su ACK (hasta 3 timeouts)
         self.numerosecuencia += 1
         mi_fin_seq = self.numerosecuencia
         fin_pkt = SocketTCP.create_segment({
             "SYN": False, "ACK": False, "FIN": True,
             "SEQ": mi_fin_seq
         })
-        self.UDP.sendto(fin_pkt, self.direcciondestino)
 
-        while True:
-            data, _ = self.UDP.recvfrom(SocketTCP.buffsizeeee)
-            seg = SocketTCP.parse_segment(data)
-            if seg and seg["ACK"] and seg["SEQ"] == mi_fin_seq + 1:
-                break
+        for intento in range(3):
+            self.UDP.sendto(fin_pkt, self.direcciondestino)
+            try:
+                data, _ = self.UDP.recvfrom(SocketTCP.buffsizeeee)
+                seg = SocketTCP.parse_segment(data)
+                if seg and seg["ACK"] and seg["SEQ"] == mi_fin_seq + 1:
+                    break
+            except socket.timeout:
+                continue
 
+        self.UDP.settimeout(None)
         self.UDP.close()
         print("Conexión cerrada exitosamente en Host B (recv_close).")
