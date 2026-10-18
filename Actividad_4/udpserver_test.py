@@ -1,5 +1,7 @@
 from socketTCP_copia import SocketTCP
 
+SocketTCP.TIMEOUT = 0.5
+
 address = ('localhost', 8000)
 sizee = 1024
 
@@ -19,3 +21,5 @@ with open("recibido.bin", "wb") as f:
     f.write(recibido)
 
 print("largo recibido:", len(recibido))
+
+connection_socketTCP.recv(1024, mode="go_back_n")

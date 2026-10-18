@@ -25,6 +25,9 @@ class SocketTCP:
         self.congestion_controler = CongestionControl(SocketTCP.MSS)
         self.congestion_control_on = False
         self.debug = False
+
+        # prueba informe
+        self.number_of_sent_segments = 0
     
     def set_congestion_control(self, value: bool):
         self.congestion_control_on = value
@@ -55,6 +58,7 @@ class SocketTCP:
                     "SEQ": seq, "DATA": d
                 })
                 self.UDP.sendto(seg, self.direcciondestino)
+                self.number_of_sent_segments += 1
                 proximo = seq + len(d)
                 enviados += 1
         return proximo, enviados
@@ -172,17 +176,17 @@ class SocketTCP:
                     nuevo.numerosecuencia = respuesta["SEQ"]
                     break
 
-                # Caso borde: se perdió el ACK final, pero el cliente ya mandó el largo del mensaje
+                # Caso borde: se perdió el ACK final, pero el cliente ya mandó el primer segmento de datos
                 if not respuesta["SYN"] and not respuesta["ACK"] and not respuesta["FIN"]:
                     nuevo.UDP.stop_timer(0)
-                    nuevo.numerosecuencia = respuesta["SEQ"]
-                    ack_primer_dato = SocketTCP.create_segment({
-                        "SYN": False, "ACK": True, "FIN": False,
-                        "SEQ": nuevo.numerosecuencia
-                    })
-                    nuevo.UDP.settimeout(-1)
-                    nuevo.UDP.sendto(ack_primer_dato, nuevo.direcciondestino)
-                    nuevo.bytes_pendientes = int(respuesta["DATA"].decode("utf-8"))
+                    nuevo.numerosecuencia = respuesta["SEQ"] - 1
+                    #ack_primer_dato = SocketTCP.create_segment({
+                    #    "SYN": False, "ACK": True, "FIN": False,
+                    #    "SEQ": nuevo.numerosecuencia
+                    #})
+                    #nuevo.UDP.settimeout(-1)
+                    #nuevo.UDP.sendto(ack_primer_dato, nuevo.direcciondestino)
+                    #nuevo.bytes_pendientes = int(respuesta["DATA"].decode("utf-8"))
                     break
 
             except socket.timeout:

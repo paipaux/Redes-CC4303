@@ -23,4 +23,7 @@
 
 	13-10 Actividad 4 hasta el punto 3, falta revisarlo bien :p
 
+	17-10 Actividad 3 y 4 completas
+
+	18-10 Se agrega servidor y cliente especifico para la ultima prueba de la actividad 4
 	
