@@ -5,6 +5,7 @@ from slidingWindowCC import SlidingWindowCC
 from CongestionControl import CongestionControl
 
 class SocketTCP:
+    MSS = 8
     headersizee = 5  # 1 byte flags + 4 bytes número de secuencia
     buffsizeeee = 5 + 16  # tamaño fijo exacto: header + 16 bytes de payload
     ventanasizeee = 8
@@ -20,6 +21,57 @@ class SocketTCP:
         self.bytes_pendientes = 0  # Bytes que faltan recibir del mensaje actual
         self.buffer_recibido = b""  # Datos ya recibidos pendientes de entregar a recv()
 
+        # congestiooon
+        self.congestion_controler = CongestionControl(SocketTCP.MSS)
+        self.congestion_control_on = False
+        self.debug = False
+    
+    def set_congestion_control(self, value: bool):
+        self.congestion_control_on = value
+
+    def set_debug(self, value: bool):
+        self.debug = value
+    
+    def _debug(self, evento, ventana):
+        if not self.debug:
+            return
+        cc = self.congestion_controler
+        estado = "slow start" if cc.is_state_slow_start() else "congestion avoidance"
+        print(f"[{evento}] cwnd={cc.get_cwnd()} ({cc.get_MSS_in_cwnd()} MSS) "
+              f"ssthresh={cc.get_ssthresh()} estado={estado} "
+              f"window_size={ventana.window_size}")
+        print(ventana)
+    
+    def enviarnuevooos(self, ventana, proximo):
+        enviados = 0
+        for i in range(ventana.window_size):
+            d = ventana.get_data(i)
+            if d is None:
+                break
+            seq = ventana.get_sequence_number(i)
+            if seq >= proximo:
+                seg = SocketTCP.create_segment({
+                    "SYN": False, "ACK": False, "FIN": False,
+                    "SEQ": seq, "DATA": d
+                })
+                self.UDP.sendto(seg, self.direcciondestino)
+                proximo = seq + len(d)
+                enviados += 1
+        return proximo, enviados
+    
+    def moverventanaaa(self, ventana, ack):
+        while True:
+            d0 = ventana.get_data(0)
+            if d0 is None or ventana.get_sequence_number(0) + len(d0) > ack:
+                return
+            k = 0
+            for i in range(ventana.window_size):
+                d = ventana.get_data(i)
+                if d is None or ventana.get_sequence_number(i) + len(d) > ack:
+                    break
+                k += 1
+            ventana.move_window(k)
+    
     @staticmethod
     def parse_segment(segment):
         if len(segment) < SocketTCP.headersizee:
@@ -79,8 +131,8 @@ class SocketTCP:
             "SYN": False, "ACK": True, "FIN": False, "SEQ": seq
         })
         self.numerosecuencia = seq
-        self.UDP.sendto(ack, self.direcciondestino)
         self.UDP.settimeout(-1)
+        self.UDP.sendto(ack, self.direcciondestino)
 
     def accept(self):
         # 1. Esperar SYN
@@ -116,24 +168,25 @@ class SocketTCP:
 
                 # Caso normal: llega el ACK final
                 if respuesta["ACK"] and respuesta["SEQ"] == (seq + 1):
-                    self.UDP.stop_timer(0)
+                    nuevo.UDP.stop_timer(0)
                     nuevo.numerosecuencia = respuesta["SEQ"]
                     break
 
                 # Caso borde: se perdió el ACK final, pero el cliente ya mandó el largo del mensaje
                 if not respuesta["SYN"] and not respuesta["ACK"] and not respuesta["FIN"]:
-                    self.UDP.stop_timer(0)
+                    nuevo.UDP.stop_timer(0)
                     nuevo.numerosecuencia = respuesta["SEQ"]
                     ack_primer_dato = SocketTCP.create_segment({
                         "SYN": False, "ACK": True, "FIN": False,
                         "SEQ": nuevo.numerosecuencia
                     })
+                    nuevo.UDP.settimeout(-1)
                     nuevo.UDP.sendto(ack_primer_dato, nuevo.direcciondestino)
                     nuevo.bytes_pendientes = int(respuesta["DATA"].decode("utf-8"))
                     break
 
             except socket.timeout:
-                self.UDP.stop_timer(0)
+                nuevo.UDP.stop_timer(0)
                 continue
 
         nuevo.UDP.settimeout(-1)
@@ -181,71 +234,67 @@ class SocketTCP:
             self._send_trozo_stop_and_wait(trozo)
             offset += len(trozo)
     
-    def enviardeventanaaa(self, ventana, i):
-        seg = SocketTCP.create_segment({
-            "SYN": False, "ACK": False, "FIN": False,
-            "SEQ": ventana.get_sequence_number(i),
-            "DATA": ventana.get_data(i)
-        })
-        self.UDP.sendto(seg, self.direcciondestino)
-
     def send_using_go_back_n(self, message):
+        cc = self.congestion_controler
+        mss = cc.MSS
         largo = str(len(message)).encode("utf-8")
-        trozos = [message[i:i + 16] for i in range(0, len(message), 16)]
+        trozos = [message[i:i + mss] for i in range(0, len(message), mss)]
         initial_seq = self.numerosecuencia + 1
-        ventana = SlidingWindowCC(SocketTCP.WINDOW_SIZE, [largo] + trozos, initial_seq)
+
+        if self.congestion_control_on:
+            window_size = cc.get_MSS_in_cwnd()
+        else:
+            window_size = SocketTCP.ventanasizeee
+        ventana = SlidingWindowCC(window_size, [largo] + trozos, initial_seq)
+        self._debug("inicio", ventana)
 
         self.UDP.settimeout(SocketTCP.TIMEOUT)
-
-        # enviamos la ventana inicial
-        for i in range(SocketTCP.ventanasizeee):
-            if ventana.get_data(i) is None:
-                break
-            self.enviardeventanaaa(ventana, i)
+        proximo, _ = self.enviarnuevooos(ventana, initial_seq)
 
         while ventana.get_data(0) is not None:
-            try:
+            try: 
                 data, _ = self.UDP.recvfrom(SocketTCP.buffsizeeee)
             except TimeoutError:
-                # se retransmite toda la ventana (go back n)
                 self.UDP.stop_timer(0)
-                for i in range(SocketTCP.ventanasizeee):
-                    if ventana.get_data(i) is None:
-                        break
-                    self.enviardeventanaaa(ventana, i)
+                if self.congestion_control_on:
+                    cc.event_timeout()
+                    ventana.update_window_size(cc.get_MSS_in_cwnd())
+                # go back-n retransmite toda la ventanaa
+                proximo, _ = self.enviarnuevooos(ventana, ventana.get_sequence_number(0))
+                self._debug("timeout", ventana)
                 continue
 
             seg = SocketTCP.parse_segment(data)
             if not seg or not seg["ACK"] or seg["SYN"]:
                 continue
+            ack = seg["SEQ"]
 
-            # cuántos segmentos de la ventana se confirma
-            confirmados = 0
-            for i in range(SocketTCP.ventanasizeee):
-                d = ventana.get_data(i)
-                if d is None or ventana.get_sequence_number(i) + len(d) > seg["SEQ"]:
-                    break
-                confirmados += 1
-            if confirmados == 0:
-                continue  # ACK duplicado o viejo
+            d0 = ventana.get_data(0)
+            if ack < ventana.get_sequence_number(0) + len(d0):
+                continue
 
             self.UDP.stop_timer(0)
-            ventana.move_window(confirmados)
+            self.moverventanaaa(ventana, ack)
+            proximo = max(proximo, ack)
+
+            if self.congestion_control_on:
+                cc.event_ack_received()
+                ventana.update_window_size(cc.get_MSS_in_cwnd())
+
             if ventana.get_data(0) is None:
-                break  # todo confirmado
+                self._debug("ack (fin)", ventana)
+                break
 
-            # enviamos los segmentos que entraron a la ventana (esto reinicia el timer)
-            nuevos = [i for i in range(SocketTCP.ventanasizeee - confirmados, SocketTCP.ventanasizeee)
-                    if ventana.get_data(i) is not None]
-            for i in nuevos:
-                self.enviardeventanaaa(ventana, i)
-            if not nuevos:
-                # no entró nada nuevo pero quedan segmentos sin confirmar: rearmamos el timer
-                self.enviardeventanaaa(ventana, 0)
+            proximo, enviados = self.enviarnuevooos(ventana, proximo)
+            if enviados == 0:
+                # quedan segmentos sin confirmar pero no entró nada neuvo :p
+                proximo, _ = self.enviarnuevooos(ventana, ventana.get_sequence_number(0))
+            self._debug("ack", ventana)
 
-        self.UDP.settimeout(-1) 
+        self.UDP.settimeout(-1)
+
         self.numerosecuencia = initial_seq + len(largo) + len(message) - 1
-        
+
     def send(self, message: bytes, mode="stop_and_wait"):
         if mode == "stop_and_wait":
             return self.send_using_stop_and_wait(message)
