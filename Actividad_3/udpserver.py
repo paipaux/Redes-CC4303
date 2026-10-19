@@ -11,8 +11,8 @@ server_socketTCP.bind((host, port))
 connection_socketTCP, new_address = server_socketTCP.accept()
 print("handshake OK, nuevo socket en", new_address)
 
-# Probamos con n = 25 (no es múltiplo de 16)
-n = 25
+
+n = 16 # se cambia a 25 para el otro test
 contador = 1
 
 while True:
