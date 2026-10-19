@@ -2,9 +2,11 @@ import socket
 import sys
 from socketTCP import SocketTCP
 
-address = ('localhost', 8000)
-sizee = 16
- 
+# Permite pasar host y puerto por terminal, o usa ('localhost', 8000) por defecto
+host = sys.argv[1] if len(sys.argv) > 1 else 'localhost'
+port = int(sys.argv[2]) if len(sys.argv) > 2 else 8000
+address = (host, port)
+
 client_socketTCP = SocketTCP()
 client_socketTCP.connect(address)
 print("handshake OK, ahora le hablo a", client_socketTCP.direcciondestino, "seq:", client_socketTCP.numerosecuencia)
