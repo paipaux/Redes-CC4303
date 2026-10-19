@@ -15,5 +15,5 @@ while True:
         break
     print("Recibido: ", data.decode("utf-8", errors="replace"))
 
-connection_socketTCP.close()
-server_socketTCP.close()
+connection_socketTCP.recv_close()
+server_socketTCP.UDP.close()
