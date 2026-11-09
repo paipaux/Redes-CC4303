@@ -30,4 +30,5 @@
 ----- CONTROL 3
 	
 	3-11 Se agregan las carpetas correspondientes a las actividades + Sección del README
-	5-11 Se avanza en la actividad 5, nos quedamos en el punto 4	
+	5-11 Se avanza en la actividad 5, nos quedamos en el punto 4
+	9-11 Se crea el archivo ippacker.py y se hace la funci'on parse-packet	
