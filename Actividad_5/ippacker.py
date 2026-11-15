@@ -2,16 +2,16 @@
 
 # 127.0.0.1;8881;hola  
 
-ip_test = bytes([127, 0, 0, 1, 88, 81, 104 ,111 ,108 ,97])
+# ip_test = bytes([127, 0, 0, 1, 88, 81, 104 ,111 ,108 ,97])
 
 
-msg = '127.0.0.1;8881;hola esta es una prueba de que el mensaje puede ser largo'
+#msg = '127.0.0.1;8881;hola esta es una prueba de que el mensaje puede ser largo'
 
 #son toditos iguales 
-holabytes = "hola".encode()
-holabytes2 = bytes([104, 111, 108 ,97])
-holabytes3 = b'hola'
-holabytes4 = 'hola'.encode()
+#holabytes = "hola".encode()
+# holabytes2 = bytes([104, 111, 108 ,97])
+# holabytes3 = b'hola'
+# holabytes4 = 'hola'.encode()
 # print(holabytes == holabytes2)
 
 def parse_packet(IP_packet:bytes):
@@ -46,24 +46,50 @@ def create_packet(parsed_ip_packet:str):
 
 
 #mini test
+    # print(create_packet(msg))
+    # print(parse_packet(create_packet(msg)))
+    # print(create_packet(parse_packet(create_packet(msg)))) 
 
-print(create_packet(msg))
-print(parse_packet(create_packet(msg)))
-print(create_packet(parse_packet(create_packet(msg)))) 
-
-#ip:
-print(parse_packet(create_packet(msg)).split(";")[0])
-#puerto:
-print(parse_packet(create_packet(msg)).split(";")[1])
-#mensaje:
-print(parse_packet(create_packet(msg)).split(";")[2])
+    # #ip:
+    # print(parse_packet(create_packet(msg)).split(";")[0])
+    # #puerto:
+    # print(parse_packet(create_packet(msg)).split(";")[1])
+    # #mensaje:
+    # print(parse_packet(create_packet(msg)).split(";")[2])
 
 
-#test de EOL check
+    # #test de EOL check
 
-IP_packet_v1 = ip_test
-parsed_IP_packet = parse_packet(IP_packet_v1)
-IP_packet_v2 = create_packet(parsed_IP_packet)
-print("IP_packet_v1 == IP_packet_v2 ? {}".format(IP_packet_v1 == IP_packet_v2))
+    # IP_packet_v1 = ip_test
+    # parsed_IP_packet = parse_packet(IP_packet_v1)
+    # IP_packet_v2 = create_packet(parsed_IP_packet)
+    # print("IP_packet_v1 == IP_packet_v2 ? {}".format(IP_packet_v1 == IP_packet_v2))
+
+
+#retorna lo primeros n digitos de la ip en binario
+def check_ip_prefix(ip,n):
+    ip_list = ip.split('.')
+    print(ip_list)
+    ip_list = [format(int(i), '08b') for i in ip_list]
+    ipinbytes = ("").join(ip_list)
+    return(ipinbytes[:n])
+
+
+def check_routes(routes_file_name: str, destination_address: tuple[str, int]):
+    nexthope = None
+    with open(routes_file_name) as f:
+        for linea in f:
+            info = linea.split()
+            print(info)
+            #Acá revidar la ip que cumpla que este en el rango con la función de arriba :p
+            if (destination_address[1] >= int(info[1])) and (destination_address[1] <= int(info[2])):
+                print("wena")
+                break
+
+#check_routes("router_rutasR1.txt", ("127.0.0.1", 8885))
+
+
+
+
 
 

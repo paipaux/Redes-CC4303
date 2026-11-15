@@ -10,11 +10,10 @@ address = (host, port)
 
 
 serverSocket = socket(AF_INET, SOCK_DGRAM)
+serverSocket.bind(address)
 
 while True:
     with open(file, "rb") as f:
         contenido = f.read()
-    print(contenido)
-    message, address = serverSocket.recvfrom(1024)
-    print(file)
-    serverSocket.sendto(message, address)
+    data, addr = serverSocket.recvfrom(1024)
+    print(data)
