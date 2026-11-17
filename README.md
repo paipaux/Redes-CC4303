@@ -33,4 +33,5 @@
 	5-11 Se avanza en la actividad 5, nos quedamos en el punto 4
 	9-11 Se crea el archivo ippacker.py y se hace la funci'on parse_packet
 	9-11 Se crea la funci'on create_packet y se corrige error de la función parse_packet terminando punto 4
-	15-11 Se avanza hasta el punto 6, esperando implementar correctamente la función	
+	15-11 Se avanza hasta el punto 6, esperando implementar correctamente la función
+	17-11 Se avanza hasta finalizar la parte sin TTL	
