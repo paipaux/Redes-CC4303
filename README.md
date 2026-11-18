@@ -35,3 +35,4 @@
 	9-11 Se crea la funci'on create_packet y se corrige error de la función parse_packet terminando punto 4
 	15-11 Se avanza hasta el punto 6, esperando implementar correctamente la función
 	17-11 Se avanza hasta finalizar la parte sin TTL	
+	17-11 Se termina TTL y se concluye la actividad
